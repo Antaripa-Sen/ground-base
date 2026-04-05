@@ -10,6 +10,7 @@ import CallModal from './CallModal';
 import CloseIncidentFlow from './CloseIncidentFlow';
 import ShareOverlay from './ShareOverlay';
 import useTimer from '../hooks/useTimer';
+import IncidentSimulator from './IncidentSimulator';
 
 const IncidentRoom = () => {
   const { selectedCrisis, incidentId, isResolved, taskStates } = useStore();
@@ -140,6 +141,7 @@ const IncidentRoom = () => {
         {modalType === 'close' && <CloseIncidentFlow onClose={() => setModalType(null)} />}
         {modalType === 'share' && <ShareOverlay onClose={() => setModalType(null)} />}
       </AnimatePresence>
+      <IncidentSimulator />
     </div>
   );
 };

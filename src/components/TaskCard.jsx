@@ -3,9 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import useStore from '../store/useStore';
 
 const TaskCard = ({ task }) => {
-  const { taskStates, taskCompletedAt, cycleTask } = useStore();
+  const { taskStates, taskCompletedAt, taskOwners, cycleTask } = useStore();
   const state = taskStates[task.id] || 'unclaimed';
   const completedAt = taskCompletedAt[task.id];
+  const owner = taskOwners[task.id] || 'YOU';
 
   const getStyles = () => {
     switch(state) {
@@ -76,11 +77,11 @@ const TaskCard = ({ task }) => {
         {state === 'claimed' && (
           <>
             <motion.div animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 1.2, repeat: Infinity }} style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--pending)' }} />
-            <span style={{ fontSize: '0.65rem', color: 'var(--pending)' }}>YOU — IN PROGRESS</span>
+            <span style={{ fontSize: '0.65rem', color: 'var(--pending)' }}>{owner.toUpperCase()} — IN PROGRESS</span>
           </>
         )}
         {state === 'completed' && (
-          <span style={{ fontSize: '0.65rem', color: 'var(--live)' }}>✓ COMPLETE · {completedAt}</span>
+          <span style={{ fontSize: '0.65rem', color: 'var(--live)' }}>✓ COMPLETE · {completedAt} BY {owner.toUpperCase()}</span>
         )}
       </motion.div>
     </motion.button>

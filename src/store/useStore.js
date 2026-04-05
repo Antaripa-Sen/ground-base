@@ -7,6 +7,7 @@ const useStore = create((set, get) => ({
   incidentStartTime: null,
   taskStates: {}, // { id: 'unclaimed' | 'claimed' | 'completed' }
   taskCompletedAt: {}, // { id: 'HH:MM:SS' }
+  taskOwners: {}, // { id: 'You' | 'Marcus K.' | ... }
   members: [],
   activityLog: [],
   toasts: [],
@@ -23,6 +24,7 @@ const useStore = create((set, get) => ({
       incidentStartTime: Date.now(),
       taskStates: {},
       taskCompletedAt: {},
+      taskOwners: {},
       activityLog: [{
         id: Date.now(),
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
@@ -37,23 +39,29 @@ const useStore = create((set, get) => ({
   cycleTask: (taskId, taskTitle) => {
     const state = get();
     const current = state.taskStates[taskId] || 'unclaimed';
+    // If it's claimed by someone else, we might not want 'YOU' to cycle it, but for demo, let it cycle anyway.
     let next = 'unclaimed';
     
     if (current === 'unclaimed') next = 'claimed';
     else if (current === 'claimed') next = 'completed';
     else next = 'unclaimed';
 
+    get().setTaskState(taskId, taskTitle, next, 'YOU');
+  },
+
+  setTaskState: (taskId, taskTitle, newState, userName) => {
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     
     set((s) => ({
-      taskStates: { ...s.taskStates, [taskId]: next },
-      taskCompletedAt: next === 'completed' ? { ...s.taskCompletedAt, [taskId]: timeStr } : s.taskCompletedAt
+      taskStates: { ...s.taskStates, [taskId]: newState },
+      taskCompletedAt: newState === 'completed' ? { ...s.taskCompletedAt, [taskId]: timeStr } : s.taskCompletedAt,
+      taskOwners: { ...s.taskOwners, [taskId]: newState !== 'unclaimed' ? userName : null }
     }));
     
-    if (next === 'claimed') {
-      get().addLog('task_claim', `Task "${taskTitle}" claimed by YOU`);
-    } else if (next === 'completed') {
-      get().addLog('task_done', `Task "${taskTitle}" completed by YOU`);
+    if (newState === 'claimed') {
+      get().addLog('task_claim', `Task "${taskTitle}" claimed by ${userName.toUpperCase()}`);
+    } else if (newState === 'completed') {
+      get().addLog('task_done', `Task "${taskTitle}" completed by ${userName.toUpperCase()}`);
     }
   },
 
@@ -90,6 +98,7 @@ const useStore = create((set, get) => ({
     incidentStartTime: null,
     taskStates: {},
     taskCompletedAt: {},
+    taskOwners: {},
     members: [],
     activityLog: [],
     isResolved: false,

@@ -9,14 +9,17 @@ const StreamingBlock = ({ block, onComplete, startDelay = 0 }) => {
   useEffect(() => {
     let timeout;
     let charIndex = 0;
+    let isMounted = true;
 
     const startTyping = () => {
+      if (!isMounted) return;
       setHasStarted(true);
       setIsTyping(true);
       
       const typeChar = () => {
+        if (!isMounted) return;
         if (charIndex < block.body.length) {
-          setText(prev => prev + block.body.charAt(charIndex));
+          setText(block.body.substring(0, charIndex + 1));
           charIndex++;
           timeout = setTimeout(typeChar, 22);
         } else {
@@ -30,7 +33,10 @@ const StreamingBlock = ({ block, onComplete, startDelay = 0 }) => {
 
     timeout = setTimeout(startTyping, startDelay);
     
-    return () => clearTimeout(timeout);
+    return () => {
+      isMounted = false;
+      clearTimeout(timeout);
+    };
   }, [block, startDelay]);
 
   if (!hasStarted) return null;
