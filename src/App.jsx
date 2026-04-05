@@ -7,10 +7,10 @@ function App() {
   const screen = useStore((state) => state.screen);
 
   return (
-    <>
+    <div className="app-container">
       {screen === 'landing' ? <LandingScreen /> : <IncidentRoom />}
       <ToastStack />
-    </>
+    </div>
   );
 }
 

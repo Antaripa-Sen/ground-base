@@ -43,7 +43,7 @@ const StreamingBlock = ({ block, onComplete, startDelay = 0 }) => {
       <div style={{ fontSize: '0.9rem', color: 'var(--text-1)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>
         {text}
         {isTyping && (
-          <motion.span animate={{ opacity: [1, 0] }} transition={{ duration: 0.5, ease: 'steps(1)', repeat: Infinity }} className="mono" style={{ color: 'var(--text-3)', marginLeft: '4px' }}>▌</motion.span>
+          <motion.span animate={{ opacity: [1, 0, 1] }} transition={{ duration: 0.8, ease: 'linear', repeat: Infinity }} className="mono" style={{ color: 'var(--text-3)', marginLeft: '4px' }}>▌</motion.span>
         )}
       </div>
     </div>
