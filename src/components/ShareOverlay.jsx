@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import useStore from '../store/useStore';
 
@@ -7,6 +7,10 @@ const ShareOverlay = ({ onClose }) => {
   const [copied, setCopied] = useState(false);
 
   const url = `groundbase.app/room/GRB-${incidentId}`;
+
+  const qrPattern = useMemo(() => {
+    return Array(441).fill(0).map(() => Math.random() > 0.4 ? '#000' : '#fff');
+  }, []);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(url).then(() => {
@@ -40,8 +44,8 @@ const ShareOverlay = ({ onClose }) => {
           
           <div style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '8px', border: '2px solid var(--line-mid)', width: 'fit-content', margin: '0 auto 24px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(21, 6px)', gridTemplateRows: 'repeat(21, 6px)', backgroundColor: '#fff' }}>
-              {Array(441).fill(0).map((_, i) => (
-                <div key={i} style={{ width: '100%', height: '100%', backgroundColor: Math.random() > 0.4 ? '#000' : '#fff' }} />
+              {qrPattern.map((color, i) => (
+                <div key={i} style={{ width: '100%', height: '100%', backgroundColor: color }} />
               ))}
             </div>
           </div>

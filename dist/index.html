@@ -1,16 +1,1751 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GROUNDBASE</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <script type="module" crossorigin src="/assets/index-ClkOYnQW.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-DihKWNyg.css">
-  </head>
-  <body>
-    <div id="root"></div>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GROUNDBASE — Crisis Command</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --void: #03050a;
+      --surface-0: #070a10;
+      --surface-1: #0c1018;
+      --surface-2: #131a24;
+      --surface-3: #1a2330;
+      --line: #1c2636;
+      --line-mid: #253347;
+      --line-bright: #35495e;
+      --crisis: #ff2d2d;
+      --crisis-dim: rgba(255,45,45,0.08);
+      --crisis-glow: 0 0 40px rgba(255,45,45,0.4), 0 0 80px rgba(255,45,45,0.15);
+      --live: #00e87a;
+      --live-dim: rgba(0,232,122,0.08);
+      --live-glow: 0 0 30px rgba(0,232,122,0.3);
+      --amber: #f5a623;
+      --amber-dim: rgba(245,166,35,0.08);
+      --signal: #3d8eff;
+      --signal-dim: rgba(61,142,255,0.08);
+      --phosphor: #00ff88;
+      --text-1: #dce8f0;
+      --text-2: #6a8099;
+      --text-3: #334455;
+      --text-4: #1e2f3f;
+      --font-ui: 'Space Grotesk', sans-serif;
+      --font-data: 'JetBrains Mono', monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      font-family: var(--font-ui);
+      background: var(--void);
+      color: var(--text-1);
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    body {
+      background-image:
+        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0,232,122,0.025) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 100% 100%, rgba(61,142,255,0.025) 0%, transparent 50%);
+    }
+
+    /* ── CANVASES ── */
+    #topo-canvas { position: fixed; inset: 0; z-index: 0; opacity: 0.035; pointer-events: none; }
+
+    /* ── EKG BAR ── */
+    #pulse-bar {
+      position: fixed; bottom: 0; left: 0; right: 0; height: 36px; z-index: 1000;
+      pointer-events: none; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+      display: flex; align-items: center;
+    }
+    #ekg-canvas { width: 100%; height: 26px; display: block; }
+
+    /* ── SPINE ── */
+    #spine {
+      position: fixed; left: 0; top: 0; bottom: 36px; width: 58px; z-index: 200;
+      background: linear-gradient(to right, rgba(7,10,16,0.99), rgba(7,10,16,0.75));
+      border-right: 1px solid var(--line);
+      display: flex; flex-direction: column; align-items: center; padding: 18px 0 14px; gap: 6px;
+    }
+    .spine-logo { width: 34px; height: 34px; margin-bottom: 14px; display: flex; align-items: center; justify-content: center; }
+    .spine-icon {
+      width: 38px; height: 38px; border-radius: 7px; border: 1px solid var(--line);
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+      color: var(--text-4); font-size: 15px; transition: all 0.2s; background: transparent;
+    }
+    .spine-icon:hover, .spine-icon.active { border-color: var(--line-bright); color: var(--text-1); background: var(--surface-2); }
+    .spine-icon.crisis-hot { border-color: var(--crisis); color: var(--crisis); box-shadow: 0 0 10px rgba(255,45,45,0.25); }
+    .spine-pulse {
+      margin-top: auto; width: 9px; height: 9px; border-radius: 50%;
+      background: var(--live); box-shadow: var(--live-glow);
+      animation: breathe 3s ease-in-out infinite;
+    }
+    @keyframes breathe { 0%,100%{transform:scale(1);opacity:0.8} 50%{transform:scale(1.5);opacity:1} }
+
+    /* ── MAIN APP ── */
+    #app { position: absolute; inset: 0 0 36px 58px; overflow: hidden; z-index: 10; }
+
+    /* ══ LANDING ══ */
+    #landing { display: flex; width: 100%; height: 100%; }
+
+    #landing-info {
+      width: 290px; min-width: 290px; height: 100%;
+      background: var(--surface-0); border-right: 1px solid var(--line);
+      padding: 36px 26px; display: flex; flex-direction: column; gap: 0;
+      position: relative; overflow: hidden;
+    }
+    #landing-info::before {
+      content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+      background: var(--crisis); box-shadow: 0 0 12px var(--crisis);
+    }
+    .info-wordmark { font-size: 20px; font-weight: 700; letter-spacing: 0.18em; color: var(--text-1); text-transform: uppercase; }
+    .info-tagline { font-family: var(--font-data); font-size: 8px; color: var(--text-3); letter-spacing: 0.3em; margin-top: 4px; }
+    .info-divider { height: 1px; background: var(--line); margin: 24px 0; }
+    .info-stat-row { display: flex; flex-direction: column; gap: 2px; margin-bottom: 18px; }
+    .info-stat-label { font-family: var(--font-data); font-size: 8px; color: var(--text-3); letter-spacing: 0.25em; text-transform: uppercase; }
+    .info-stat-value { font-family: var(--font-data); font-size: 14px; font-weight: 500; color: var(--text-1); }
+    .status-word { font-family: var(--font-ui); font-size: 44px; font-weight: 700; line-height: 1; color: var(--text-3); letter-spacing: 0.05em; text-transform: uppercase; transition: all 0.3s; }
+    .status-word.armed { color: var(--crisis); text-shadow: 0 0 28px rgba(255,45,45,0.45); }
+
+    #landing-ops { flex: 1; height: 100%; display: flex; flex-direction: column; overflow: hidden; background: var(--void); position: relative; }
+    #ops-header {
+      padding: 28px 36px 18px; border-bottom: 1px solid var(--line);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .ops-label { font-family: var(--font-data); font-size: 9px; color: var(--text-3); letter-spacing: 0.35em; text-transform: uppercase; }
+    #hex-grid-container { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+    #hex-grid-svg { width: 100%; max-width: 700px; max-height: 500px; }
+
+    #declare-section { padding: 18px 36px 24px; border-top: 1px solid var(--line); }
+    #declare-btn {
+      width: 100%; height: 62px; border-radius: 6px; border: 1.5px solid var(--crisis);
+      background: linear-gradient(135deg, rgba(255,45,45,0.05), var(--void));
+      color: var(--text-1); font-family: var(--font-ui); font-size: 13px; font-weight: 600;
+      letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; position: relative; overflow: hidden;
+      display: flex; align-items: center; justify-content: space-between; padding: 0 22px;
+      transition: all 0.2s;
+    }
+    #declare-btn::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(255,45,45,0.08), transparent);
+      opacity: 0; transition: opacity 0.2s;
+    }
+    #declare-btn:hover::before { opacity: 1; }
+    #declare-btn:hover { box-shadow: var(--crisis-glow); }
+    #declare-btn.no-crisis { opacity: 0.35; pointer-events: none; }
+    .declare-left { display: flex; align-items: center; gap: 11px; }
+    .declare-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--crisis); box-shadow: 0 0 7px var(--crisis); animation: pulse-dot 2s ease-in-out infinite; }
+    @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.3;transform:scale(0.8)} }
+    .declare-arrow { width: 34px; height: 34px; border: 1px solid var(--crisis); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--crisis); font-size: 15px; }
+
+    /* ══ ARM OVERLAY ══ */
+    #arm-overlay {
+      position: fixed; inset: 0; z-index: 9000;
+      background: rgba(3,5,10,0.97); backdrop-filter: blur(16px);
+      display: none; align-items: center; justify-content: center; flex-direction: column;
+    }
+    #arm-overlay.active { display: flex; }
+
+    .arm-radial {
+      position: absolute; inset: 0; pointer-events: none;
+      background: radial-gradient(ellipse 60% 50% at 50% 50%, rgba(255,45,45,0.08) 0%, transparent 70%);
+      animation: arm-pulse-bg 2s ease-in-out infinite;
+    }
+    @keyframes arm-pulse-bg { 0%,100%{opacity:0.5} 50%{opacity:1} }
+
+    /* Fracture lines */
+    .arm-fractures {
+      position: absolute; inset: 0; pointer-events: none; overflow: hidden;
+    }
+    .arm-fractures svg { width: 100%; height: 100%; opacity: 0.12; }
+
+    .arm-border-pulse {
+      position: absolute; inset: 0; pointer-events: none;
+      border: 2px solid var(--crisis);
+      animation: border-strobe 1.5s ease-in-out infinite;
+    }
+    @keyframes border-strobe { 0%,100%{opacity:0} 50%{opacity:0.25} }
+
+    .arm-title {
+      font-family: var(--font-data); font-size: 10px; letter-spacing: 0.5em;
+      color: var(--crisis); margin-bottom: 44px; position: relative; text-transform: uppercase;
+    }
+
+    .dial-label { font-family: var(--font-data); font-size: 9px; color: var(--text-3); letter-spacing: 0.3em; text-align: center; margin-bottom: 10px; position: relative; }
+    #dial-pct-label { color: var(--crisis); }
+
+    #dial-container {
+      width: 164px; height: 164px; position: relative; margin-bottom: 38px; cursor: grab; user-select: none;
+    }
+    #dial-container:active { cursor: grabbing; }
+    #dial-svg { width: 100%; height: 100%; }
+
+    #hold-btn {
+      width: 248px; height: 54px; border: 1.5px solid var(--crisis); border-radius: 4px;
+      background: transparent; color: var(--crisis); font-family: var(--font-ui); font-size: 11px;
+      font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; cursor: pointer;
+      position: relative; overflow: hidden; user-select: none; -webkit-user-select: none;
+    }
+    #hold-btn.locked { opacity: 0.3; pointer-events: none; }
+    #hold-fill {
+      position: absolute; inset: 0; background: var(--crisis);
+      transform-origin: left; transform: scaleX(0);
+    }
+    #hold-label { position: relative; z-index: 1; mix-blend-mode: difference; }
+
+    .arm-cancel {
+      margin-top: 22px; font-family: var(--font-data); font-size: 9px; color: var(--text-3);
+      letter-spacing: 0.22em; cursor: pointer; background: none; border: none;
+      text-transform: uppercase; transition: color 0.2s; position: relative;
+    }
+    .arm-cancel:hover { color: var(--text-2); }
+
+    /* ══ INCIDENT ROOM ══ */
+    #incident-room { display: none; width: 100%; height: 100%; flex-direction: row; }
+    #incident-room.active { display: flex; }
+
+    /* Situation Stack */
+    #situation-stack {
+      width: 350px; min-width: 350px; height: 100%;
+      background: var(--surface-0); border-left: 1px solid var(--line);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    #stack-header {
+      padding: 22px 18px 14px; border-bottom: 1px solid var(--line);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .stack-title { font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-2); }
+    .task-counter { font-family: var(--font-data); font-size: 9px; color: var(--live); background: var(--live-dim); border: 1px solid rgba(0,232,122,0.18); padding: 3px 8px; border-radius: 3px; }
+    #task-stack { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 9px; }
+
+    .task-card {
+      border-radius: 8px; border: 1px solid var(--line);
+      background: linear-gradient(135deg, var(--surface-2), var(--surface-1));
+      padding: 15px; position: relative; cursor: pointer; overflow: hidden;
+      transition: all 0.18s; box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+    }
+    .task-card::before {
+      content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+      background: var(--line-bright); border-radius: 8px 0 0 8px; transition: background 0.2s;
+    }
+    .task-card:hover { transform: translateY(-2px); border-color: var(--line-bright); box-shadow: 0 7px 20px rgba(0,0,0,0.5); }
+    .task-card.claimed { border-color: rgba(245,166,35,0.35); background: linear-gradient(135deg, rgba(245,166,35,0.05), var(--surface-1)); }
+    .task-card.claimed::before { background: var(--amber); }
+    .task-card.completed { border-color: rgba(0,232,122,0.25); background: linear-gradient(135deg, rgba(0,232,122,0.04), var(--surface-1)); opacity: 0.72; }
+    .task-card.completed::before { background: var(--live); }
+    .task-num { font-family: var(--font-data); font-size: 8px; color: var(--text-3); letter-spacing: 0.28em; margin-bottom: 5px; }
+    .task-title { font-size: 13px; font-weight: 600; color: var(--text-1); margin-bottom: 3px; }
+    .task-card.completed .task-title { text-decoration: line-through; color: var(--text-3); }
+    .task-desc { font-size: 11px; color: var(--text-2); line-height: 1.5; margin-bottom: 11px; }
+    .task-footer { font-family: var(--font-data); font-size: 9px; color: var(--text-3); display: flex; align-items: center; gap: 5px; }
+    .task-status-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+    .task-card.claimed .task-footer .task-status-dot { background: var(--amber); animation: pulse-dot 1s infinite; }
+    .task-card.completed .task-footer .task-status-dot { background: var(--live); }
+    .task-check { position: absolute; top: 13px; right: 13px; width: 20px; height: 20px; border-radius: 50%; background: var(--live); color: #000; font-size: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+
+    /* Main incident area */
+    #incident-main { flex: 1; height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+    #incident-header {
+      padding: 18px 26px 14px; border-bottom: 1px solid var(--line);
+      display: flex; justify-content: space-between; align-items: center;
+      background: linear-gradient(to bottom, var(--surface-1), transparent);
+    }
+    .incident-id-block { display: flex; flex-direction: column; gap: 3px; }
+    .incident-grb { font-family: var(--font-data); font-size: 9px; color: var(--live); letter-spacing: 0.28em; display: flex; align-items: center; gap: 5px; }
+    .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--crisis); animation: pulse-dot 1s infinite; }
+    .incident-type { font-size: 17px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+    .incident-header-right { display: flex; align-items: center; gap: 18px; }
+    .elapsed-label { font-family: var(--font-data); font-size: 8px; color: var(--text-3); letter-spacing: 0.22em; }
+    .elapsed-time { font-family: var(--font-data); font-size: 27px; font-weight: 700; color: var(--text-1); letter-spacing: 0.1em; }
+    .close-incident-btn {
+      padding: 7px 14px; border: 1px solid var(--line-mid); border-radius: 4px;
+      background: transparent; color: var(--text-2); font-family: var(--font-ui); font-size: 9px;
+      font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; cursor: pointer; transition: all 0.2s;
+    }
+    .close-incident-btn:hover { border-color: var(--live); color: var(--live); }
+
+    #incident-content { flex: 1; display: flex; overflow: hidden; }
+
+    /* Triage panel */
+    #triage-panel {
+      width: 390px; min-width: 370px; height: 100%; border-right: 1px solid var(--line);
+      display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0);
+    }
+    #triage-header {
+      padding: 14px 18px 11px; border-bottom: 1px solid var(--line);
+      display: flex; align-items: center; gap: 7px;
+    }
+    .triage-indicator { width: 6px; height: 6px; border-radius: 50%; background: var(--live); animation: breathe 2s infinite; }
+    .triage-label { font-family: var(--font-data); font-size: 9px; color: var(--live); letter-spacing: 0.28em; text-transform: uppercase; }
+
+    #oscilloscope {
+      background: #010a06; border-bottom: 1px solid rgba(0,255,136,0.12);
+      height: 78px; position: relative; overflow: hidden; flex-shrink: 0;
+    }
+    #osc-canvas { width: 100%; height: 100%; display: block; }
+
+    .triage-scroll-wrap {
+      position: relative; overflow: hidden; flex: 1; display: flex; flex-direction: column;
+    }
+    .scanline {
+      position: absolute; left: 0; right: 0; height: 2px;
+      background: linear-gradient(to bottom, transparent, rgba(0,255,136,0.07), transparent);
+      animation: scan 4s linear infinite; pointer-events: none; z-index: 2;
+    }
+    @keyframes scan { from{top:-2px} to{top:100%} }
+    #triage-content { flex: 1; overflow-y: auto; padding: 18px; }
+
+    .triage-block { margin-bottom: 22px; }
+    .triage-block-heading {
+      font-family: var(--font-data); font-size: 8px; letter-spacing: 0.28em;
+      text-transform: uppercase; margin-bottom: 9px;
+    }
+    .triage-block-heading.live { color: var(--live); }
+    .triage-block-heading.pending { color: var(--amber); }
+    .triage-block-heading.signal { color: var(--signal); }
+    .triage-text { font-size: 12px; color: var(--text-1); line-height: 1.8; font-family: var(--font-data); white-space: pre-wrap; }
+    .triage-cursor { display: inline-block; width: 7px; height: 12px; background: var(--phosphor); animation: blink 0.75s steps(1) infinite; vertical-align: middle; margin-left: 2px; }
+    @keyframes blink { 50%{opacity:0} }
+
+    /* Roster ring */
+    #roster-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    #roster-header { padding: 14px 18px 11px; border-bottom: 1px solid var(--line); }
+    .roster-label { font-family: var(--font-data); font-size: 9px; color: var(--text-3); letter-spacing: 0.28em; text-transform: uppercase; }
+    #roster-ring-container {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      position: relative; min-height: 200px;
+    }
+    #roster-svg { width: 260px; height: 260px; }
+
+    /* Activity feed */
+    #activity-feed { height: 195px; border-top: 1px solid var(--line); overflow: hidden; flex-shrink: 0; }
+    #activity-header { padding: 9px 18px 7px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 5px; }
+    .activity-label { font-family: var(--font-data); font-size: 8px; color: var(--text-3); letter-spacing: 0.22em; }
+    #activity-list { overflow-y: auto; max-height: 148px; padding: 6px 0; }
+    .activity-item {
+      padding: 5px 18px; display: flex; gap: 9px; align-items: flex-start;
+      border-left: 2px solid transparent; transition: background 0.12s;
+    }
+    .activity-item:hover { background: var(--surface-1); }
+    .activity-time { font-family: var(--font-data); font-size: 8px; color: var(--text-3); min-width: 50px; padding-top: 1px; }
+    .activity-msg { font-size: 11px; color: var(--text-2); line-height: 1.4; }
+    .activity-item.system { border-color: var(--live); }
+    .activity-item.task_done { border-color: var(--live); }
+    .activity-item.task_claim { border-color: var(--amber); }
+    .activity-item.member { border-color: var(--signal); }
+    .activity-item.comms { border-color: var(--crisis); }
+    .activity-item.copy { border-color: var(--text-3); }
+
+    /* Comms strip */
+    #comms-strip { border-top: 1px solid var(--line); padding: 13px 18px; display: flex; gap: 9px; flex-shrink: 0; }
+    .comms-btn {
+      flex: 1; height: 46px; border-radius: 6px; border: 1px solid var(--line-mid);
+      background: var(--surface-2); color: var(--text-2); font-family: var(--font-ui);
+      font-size: 9px; font-weight: 600; letter-spacing: 0.11em; text-transform: uppercase;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; transition: all 0.18s;
+    }
+    .comms-btn:hover { border-color: var(--signal); color: var(--text-1); background: var(--signal-dim); }
+    .comms-btn.secondary:hover { border-color: var(--crisis); color: var(--text-1); background: var(--crisis-dim); }
+
+    /* ══ TOASTS ══ */
+    #toast-stack {
+      position: fixed; top: 14px; right: 14px; z-index: 8000;
+      display: flex; flex-direction: column; gap: 7px; pointer-events: none;
+    }
+    .toast {
+      min-width: 250px; background: var(--surface-2); border-radius: 5px;
+      padding: 9px 13px; display: flex; align-items: center; gap: 9px;
+      border: 1px solid var(--line-mid); box-shadow: 0 7px 22px rgba(0,0,0,0.6);
+      animation: toast-in 0.22s ease; font-size: 12px; color: var(--text-1);
+    }
+    @keyframes toast-in { from{transform:translateX(36px);opacity:0} to{transform:translateX(0);opacity:1} }
+    .toast-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ══ CALL MODAL ══ */
+    #modal-overlay {
+      position: fixed; inset: 0; z-index: 7000;
+      background: rgba(3,5,10,0.88); backdrop-filter: blur(12px);
+      display: none; align-items: flex-end; justify-content: center;
+    }
+    #modal-overlay.active { display: flex; }
+    #call-modal {
+      width: min(530px, 100%); background: var(--surface-0);
+      border-radius: 16px 16px 0 0; padding: 26px 22px;
+      border-top: 2px solid var(--signal); animation: modal-up 0.28s cubic-bezier(0.32,0.72,0,1);
+    }
+    @keyframes modal-up { from{transform:translateY(100%)} to{transform:translateY(0)} }
+    .modal-drag { width: 34px; height: 4px; background: var(--line-mid); border-radius: 2px; margin: 0 auto 18px; }
+    .modal-title { font-size: 19px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 3px; }
+    .modal-sub { font-family: var(--font-data); font-size: 8px; color: var(--text-3); letter-spacing: 0.22em; margin-bottom: 14px; }
+    .modal-divider { height: 1px; background: var(--line); margin-bottom: 14px; }
+    .modal-script {
+      background: var(--surface-1); border: 1px solid var(--line); border-radius: 7px;
+      padding: 16px; font-family: var(--font-ui); font-size: 13px; line-height: 1.8;
+      color: var(--text-1); max-height: 190px; overflow-y: auto; margin-bottom: 14px;
+    }
+    .script-placeholder {
+      display: inline; background: rgba(245,166,35,0.1); color: var(--amber);
+      padding: 1px 5px; border-radius: 3px; border-bottom: 1px solid rgba(245,166,35,0.35);
+      font-family: var(--font-data); font-size: 11px;
+    }
+    .modal-copy-btn {
+      width: 100%; height: 46px; border-radius: 7px; background: var(--live);
+      color: #000; font-family: var(--font-ui); font-size: 12px; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase; border: none; cursor: pointer; transition: opacity 0.18s;
+    }
+    .modal-copy-btn:hover { opacity: 0.88; }
+    .modal-close-btn {
+      width: 100%; height: 38px; margin-top: 7px; background: transparent;
+      border: 1px solid var(--line); border-radius: 5px; color: var(--text-2);
+      font-family: var(--font-ui); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer;
+    }
+
+    /* ══ SHARE OVERLAY ══ */
+    #share-overlay {
+      position: fixed; inset: 0; z-index: 7500;
+      background: rgba(3,5,10,0.94); backdrop-filter: blur(16px);
+      display: none; align-items: center; justify-content: center;
+    }
+    #share-overlay.active { display: flex; }
+    .share-box {
+      background: var(--surface-1); border: 1px solid var(--line-mid); border-top: 2px solid var(--live);
+      border-radius: 14px; padding: 34px; width: min(400px, calc(100% - 40px)); text-align: center;
+      animation: scale-in 0.2s ease; position: relative;
+    }
+    @keyframes scale-in { from{transform:scale(0.92);opacity:0} to{transform:scale(1);opacity:1} }
+    .share-close {
+      position: absolute; top: 14px; right: 14px; width: 30px; height: 30px;
+      border-radius: 50%; background: var(--surface-2); border: 1px solid var(--line);
+      color: var(--text-2); font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    .share-title { font-size: 22px; font-weight: 700; text-transform: uppercase; margin-bottom: 3px; margin-top: 8px; }
+    .share-sub { font-family: var(--font-data); font-size: 8px; color: var(--text-3); letter-spacing: 0.22em; margin-bottom: 22px; }
+    .share-qr { background: #fff; padding: 14px; border-radius: 8px; width: fit-content; margin: 0 auto 20px; }
+    .share-qr canvas { display: block; }
+    .share-url-btn {
+      width: 100%; background: var(--void); border: 1px solid var(--live); border-radius: 7px;
+      padding: 11px 18px; font-family: var(--font-data); font-size: 11px; color: var(--live);
+      margin-bottom: 10px; cursor: pointer; transition: background 0.15s;
+    }
+    .share-url-btn:hover { background: var(--live-dim); }
+    .share-expires { font-family: var(--font-data); font-size: 9px; color: var(--amber); margin-bottom: 18px; }
+    .share-copy-btn {
+      width: 100%; height: 48px; border-radius: 9px; background: var(--live); color: #000;
+      font-family: var(--font-ui); font-size: 12px; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; border: none; cursor: pointer; transition: opacity 0.18s;
+    }
+    .share-copy-btn:hover { opacity: 0.88; }
+
+    /* ══ CLOSE CONFIRM ══ */
+    #close-confirm {
+      position: fixed; inset: 0; z-index: 7500;
+      background: rgba(3,5,10,0.9); backdrop-filter: blur(14px);
+      display: none; align-items: center; justify-content: center;
+    }
+    #close-confirm.active { display: flex; }
+    .confirm-box {
+      background: var(--surface-1); border: 1px solid var(--line-mid); border-top: 2px solid var(--live);
+      border-radius: 12px; padding: 30px; width: min(380px, calc(100% - 44px)); text-align: center;
+      animation: scale-in 0.2s ease;
+    }
+    .confirm-icon { width: 42px; height: 42px; border-radius: 50%; background: var(--live); color: #000; font-size: 17px; font-weight: 900; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; }
+    .confirm-title { font-size: 21px; font-weight: 700; text-transform: uppercase; margin-bottom: 7px; }
+    .confirm-text { font-size: 13px; color: var(--text-2); line-height: 1.6; margin-bottom: 22px; }
+    .confirm-yes {
+      width: 100%; height: 46px; border-radius: 7px; background: var(--live); color: #000;
+      font-family: var(--font-ui); font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      border: none; cursor: pointer; margin-bottom: 7px;
+    }
+    .confirm-no {
+      width: 100%; height: 38px; background: transparent; border: 1px solid var(--line-mid);
+      border-radius: 5px; color: var(--text-2); font-family: var(--font-ui); font-size: 10px;
+      letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer;
+    }
+
+    /* ══ RESOLVED BANNER ══ */
+    #resolved-banner {
+      display: none; background: var(--live-dim); border: 1px solid var(--live);
+      border-top: 2px solid var(--live); border-radius: 10px; padding: 26px; text-align: center; margin: 22px;
+    }
+    #resolved-banner.show { display: block; }
+    .resolved-check { width: 46px; height: 46px; border-radius: 50%; background: var(--live); color: #000; font-size: 19px; font-weight: 900; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+    .resolved-title { font-size: 23px; font-weight: 700; color: var(--live); text-transform: uppercase; margin-bottom: 14px; }
+    .return-btn {
+      display: inline-block; padding: 11px 26px; border: 1px solid var(--live); border-radius: 5px;
+      background: transparent; color: var(--live); font-family: var(--font-ui); font-size: 11px;
+      font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; cursor: pointer; transition: background 0.15s;
+    }
+    .return-btn:hover { background: var(--live-dim); }
+
+    /* ══ SCROLLBAR ══ */
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-track { background: var(--void); }
+    ::-webkit-scrollbar-thumb { background: var(--line-mid); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<canvas id="topo-canvas"></canvas>
+
+<!-- SPINE -->
+<div id="spine">
+  <div class="spine-logo">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+      <polygon points="12,2 22,20 2,20" stroke="#ff2d2d" stroke-width="1.5" fill="none"/>
+      <polygon points="12,7 18,18 6,18" fill="rgba(255,45,45,0.18)"/>
+    </svg>
+  </div>
+  <div class="spine-icon active" title="Command">⊕</div>
+  <div class="spine-icon" title="Network">◎</div>
+  <div class="spine-icon" title="Analytics">▦</div>
+  <div class="spine-icon" title="Settings">⚙</div>
+  <div class="spine-pulse" id="spine-pulse"></div>
+</div>
+
+<!-- APP -->
+<div id="app">
+
+  <!-- ══ LANDING ══ -->
+  <div id="landing">
+    <div id="landing-info">
+      <div class="info-wordmark">Groundbase</div>
+      <div class="info-tagline">CRISIS COMMAND SYSTEM · v2.4.1</div>
+      <div class="info-divider"></div>
+      <div>
+        <div class="info-stat-label">System Status</div>
+        <div class="status-word" id="sys-status-word">STANDBY</div>
+      </div>
+      <div class="info-divider"></div>
+      <div class="info-stat-row">
+        <div class="info-stat-label">Response Network</div>
+        <div class="info-stat-value">847 members</div>
+      </div>
+      <div class="info-stat-row">
+        <div class="info-stat-label">Incidents Today</div>
+        <div class="info-stat-value">3 active</div>
+      </div>
+      <div class="info-stat-row">
+        <div class="info-stat-label">Avg Response Time</div>
+        <div class="info-stat-value">2m 14s</div>
+      </div>
+      <div class="info-stat-row">
+        <div class="info-stat-label">Coverage</div>
+        <div class="info-stat-value">Global</div>
+      </div>
+    </div>
+
+    <div id="landing-ops">
+      <div id="ops-header">
+        <div class="ops-label">Select Crisis Type</div>
+        <div style="font-family:var(--font-data);font-size:9px;color:var(--text-3)" id="selected-label">— NO SELECTION —</div>
+      </div>
+      <div id="hex-grid-container">
+        <svg id="hex-grid-svg" viewBox="0 0 720 480" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+      <div id="declare-section">
+        <button id="declare-btn" class="no-crisis" onclick="openArmSequence()">
+          <div class="declare-left">
+            <div class="declare-dot"></div>
+            <span>DECLARE CRISIS</span>
+          </div>
+          <div class="declare-arrow">→</div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ INCIDENT ROOM ══ -->
+  <div id="incident-room">
+
+    <div id="incident-main">
+      <div id="incident-header">
+        <div class="incident-id-block">
+          <div class="incident-grb">
+            <div class="live-dot"></div>
+            <span id="inc-grb-id">GRB-0000</span>
+          </div>
+          <div class="incident-type" id="inc-type-label">FIRE INCIDENT</div>
+        </div>
+        <div class="incident-header-right">
+          <div>
+            <div class="elapsed-label">ELAPSED</div>
+            <div class="elapsed-time" id="elapsed-display">00:00</div>
+          </div>
+          <button class="close-incident-btn" onclick="showCloseConfirm()">CLOSE INCIDENT</button>
+          <button class="close-incident-btn" onclick="openShareOverlay()" style="border-color:var(--signal);color:var(--signal)">↗ SHARE</button>
+        </div>
+      </div>
+
+      <div id="incident-content">
+        <!-- Triage Panel -->
+        <div id="triage-panel">
+          <div id="triage-header">
+            <div class="triage-indicator"></div>
+            <div class="triage-label">AI Triage</div>
+          </div>
+          <div id="oscilloscope">
+            <canvas id="osc-canvas"></canvas>
+          </div>
+          <div class="triage-scroll-wrap">
+            <div class="scanline"></div>
+            <div id="triage-content"></div>
+          </div>
+          <div id="comms-strip">
+            <button class="comms-btn" onclick="openCallModal('primary')">
+              <span id="primary-icon">🚒</span>
+              <span id="primary-label">FIRE BRIGADE</span>
+            </button>
+            <button class="comms-btn secondary" onclick="openCallModal('secondary')">
+              <span id="secondary-icon">🚔</span>
+              <span id="secondary-label">POLICE</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Roster + Activity -->
+        <div id="roster-area">
+          <div id="roster-header">
+            <div class="roster-label">Responder Roster</div>
+          </div>
+          <div id="roster-ring-container">
+            <svg id="roster-svg" viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg"></svg>
+          </div>
+          <div id="activity-feed">
+            <div id="activity-header">
+              <div style="width:5px;height:5px;border-radius:50%;background:var(--live);animation:breathe 2s infinite;flex-shrink:0"></div>
+              <div class="activity-label">Live Activity Feed</div>
+            </div>
+            <div id="activity-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Situation Stack -->
+    <div id="situation-stack">
+      <div id="stack-header">
+        <div class="stack-title">Response Tasks</div>
+        <div class="task-counter" id="task-counter">0/4 COMPLETE</div>
+      </div>
+      <div id="task-stack"></div>
+      <div id="resolved-banner">
+        <div class="resolved-check">✓</div>
+        <div class="resolved-title">Incident Resolved</div>
+        <button class="return-btn" onclick="returnToLanding()">RETURN TO HOME</button>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- EKG -->
+<div id="pulse-bar">
+  <canvas id="ekg-canvas"></canvas>
+</div>
+
+<!-- ══ ARM OVERLAY ══ -->
+<div id="arm-overlay">
+  <div class="arm-radial"></div>
+  <div class="arm-border-pulse"></div>
+  <div class="arm-fractures">
+    <svg viewBox="0 0 1200 800" preserveAspectRatio="none">
+      <line x1="0" y1="200" x2="300" y2="380" stroke="#ff2d2d" stroke-width="1"/>
+      <line x1="300" y1="380" x2="480" y2="320" stroke="#ff2d2d" stroke-width="0.5"/>
+      <line x1="1200" y1="150" x2="900" y2="350" stroke="#ff2d2d" stroke-width="1"/>
+      <line x1="900" y1="350" x2="720" y2="290" stroke="#ff2d2d" stroke-width="0.5"/>
+      <line x1="100" y1="700" x2="350" y2="500" stroke="#ff2d2d" stroke-width="0.8"/>
+      <line x1="1100" y1="680" x2="820" y2="480" stroke="#ff2d2d" stroke-width="0.8"/>
+      <line x1="600" y1="0" x2="580" y2="240" stroke="#ff2d2d" stroke-width="0.5"/>
+      <line x1="600" y1="800" x2="620" y2="560" stroke="#ff2d2d" stroke-width="0.5"/>
+    </svg>
+  </div>
+
+  <div class="arm-title" id="arm-crisis-title">ARMING CRISIS DECLARATION</div>
+
+  <div class="dial-label">ROTATE DIAL TO ARM — <span id="dial-pct-label">0%</span></div>
+  <div id="dial-container">
+    <svg id="dial-svg" viewBox="0 0 164 164">
+      <!-- Outer track -->
+      <circle cx="82" cy="82" r="66" fill="none" stroke="rgba(255,45,45,0.12)" stroke-width="2"/>
+      <!-- Fill arc -->
+      <circle cx="82" cy="82" r="66" fill="none" stroke="var(--crisis)" stroke-width="2.5"
+              stroke-dasharray="415" stroke-dashoffset="415" id="dial-arc"
+              stroke-linecap="round" transform="rotate(-90 82 82)"/>
+      <!-- Inner circle -->
+      <circle cx="82" cy="82" r="54" fill="rgba(255,45,45,0.04)" stroke="rgba(255,45,45,0.18)" stroke-width="1"/>
+      <!-- Tick marks -->
+      <g stroke="rgba(255,45,45,0.2)" stroke-width="1">
+        <line x1="82" y1="16" x2="82" y2="24" transform="rotate(0 82 82)"/>
+        <line x1="82" y1="16" x2="82" y2="22" transform="rotate(45 82 82)"/>
+        <line x1="82" y1="16" x2="82" y2="22" transform="rotate(90 82 82)"/>
+        <line x1="82" y1="16" x2="82" y2="22" transform="rotate(135 82 82)"/>
+        <line x1="82" y1="16" x2="82" y2="24" transform="rotate(180 82 82)"/>
+        <line x1="82" y1="16" x2="82" y2="22" transform="rotate(225 82 82)"/>
+        <line x1="82" y1="16" x2="82" y2="22" transform="rotate(270 82 82)"/>
+      </g>
+      <!-- Percentage text -->
+      <text x="82" y="87" text-anchor="middle" fill="var(--crisis)" font-size="22"
+            font-family="JetBrains Mono" font-weight="700" id="dial-text">0%</text>
+      <!-- Handle -->
+      <circle cx="82" cy="16" r="7" fill="var(--crisis)" id="dial-handle" filter="url(#glow-handle)"/>
+      <defs>
+        <filter id="glow-handle">
+          <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#ff2d2d" flood-opacity="0.8"/>
+        </filter>
+      </defs>
+    </svg>
+  </div>
+
+  <button id="hold-btn" class="locked"
+    onmousedown="startHold()" onmouseup="stopHold()" onmouseleave="stopHold()"
+    ontouchstart="startHold(event)" ontouchend="stopHold()">
+    <div id="hold-fill"></div>
+    <span id="hold-label">HOLD TO CONFIRM CRISIS</span>
+  </button>
+  <button class="arm-cancel" onclick="closeArmSequence()">✕ CANCEL DECLARATION</button>
+</div>
+
+<!-- ══ CALL MODAL ══ -->
+<div id="modal-overlay" onclick="closeModalOverlay(event)">
+  <div id="call-modal">
+    <div class="modal-drag"></div>
+    <div class="modal-title" id="modal-title">CALL SCRIPT</div>
+    <div class="modal-sub">READ CLEARLY TO OPERATOR</div>
+    <div class="modal-divider"></div>
+    <div class="modal-script" id="modal-script-content"></div>
+    <button class="modal-copy-btn" onclick="copyScript()" id="modal-copy-btn">COPY SCRIPT</button>
+    <button class="modal-close-btn" onclick="document.getElementById('modal-overlay').classList.remove('active')">CLOSE</button>
+  </div>
+</div>
+
+<!-- ══ SHARE OVERLAY ══ -->
+<div id="share-overlay" onclick="closeShareOverlay(event)">
+  <div class="share-box" onclick="event.stopPropagation()">
+    <button class="share-close" onclick="document.getElementById('share-overlay').classList.remove('active')">✕</button>
+    <div class="share-title">SHARE ROOM ACCESS</div>
+    <div class="share-sub">INVITE TO INCIDENT ROOM</div>
+    <div class="share-qr">
+      <canvas id="qr-canvas" width="120" height="120"></canvas>
+    </div>
+    <button class="share-url-btn" id="share-url-btn" onclick="copyShareLink()">
+      groundbase.app/room/<span id="share-room-id">GRB-0000</span>
+    </button>
+    <div class="share-expires">⏱ EXPIRES IN <span id="share-countdown">1:59</span></div>
+    <button class="share-copy-btn" onclick="copyShareLink()" id="share-copy-btn">COPY INVITE LINK</button>
+  </div>
+</div>
+
+<!-- ══ CLOSE CONFIRM ══ -->
+<div id="close-confirm">
+  <div class="confirm-box">
+    <div class="confirm-icon">◉</div>
+    <div class="confirm-title">Close Incident?</div>
+    <div class="confirm-text">This will mark the incident as resolved and notify all connected members.</div>
+    <button class="confirm-yes" onclick="resolveIncident()">CONFIRM CLOSE</button>
+    <button class="confirm-no" onclick="document.getElementById('close-confirm').classList.remove('active')">CANCEL</button>
+  </div>
+</div>
+
+<!-- ══ TOASTS ══ -->
+<div id="toast-stack"></div>
+
+<script>
+// ════════════════════════════════════════════════════════
+//  GROUNDBASE — FULL WAR ROOM ENGINE
+// ════════════════════════════════════════════════════════
+
+const CRISIS_DATA = {
+  fire: {
+    id:'fire', label:'FIRE INCIDENT', subLabel:'Structure / Environmental', icon:'🔥', color:'#ff3b3b',
+    aiBlocks:[
+      {heading:'SITUATION ASSESSMENT', color:'live', body:'Fire alarm triggered on Level 3. Sensors indicate smoke spread to stairwell B. Thermal scan shows heat source in Server Room 3A.'},
+      {heading:'PRIORITY ACTIONS', color:'pending', body:'1. Evacuate Level 3 immediately.\n2. Do NOT use elevators.\n3. Head to primary assembly point.\n4. Ensure all doors are closed behind you.'},
+      {heading:'COMMS READY', color:'signal', body:'Fire brigade and police protocols synchronized and ready for dispatch.'}
+    ],
+    tasks:[
+      {id:'f1',num:'01',title:'Evacuate Area',description:'Clear everyone from Level 3.'},
+      {id:'f2',num:'02',title:'Pull Alarm',description:'Ensure localized manual alarms are active.'},
+      {id:'f3',num:'03',title:'Account for People',description:'Take headcount at assembly point.'},
+      {id:'f4',num:'04',title:'Direct Fire Brigade',description:'Meet trucks at Main Entrance.'}
+    ],
+    primaryCallLabel:'FIRE BRIGADE', primaryCallIcon:'🚒',
+    primaryScript:'Fire Brigade, this is [YOUR NAME] at [YOUR LOCATION]. We have an active fire alarm on Level 3, confirmed smoke in stairwell B. Evacuation in progress. Need units immediately.',
+    secondaryCallLabel:'POLICE', secondaryCallIcon:'🚔',
+    secondaryScript:'Police, requesting unit at [YOUR LOCATION] for traffic and crowd control due to an active structure fire. Heavy apparatus inbound.'
+  },
+  medical: {
+    id:'medical', label:'MEDICAL EMERGENCY', subLabel:'Trauma / Health', icon:'🏥', color:'#05d97a',
+    aiBlocks:[
+      {heading:'SITUATION ASSESSMENT', color:'live', body:'Adult male, ~50s, reported unresponsive in lobby. Bystander performing CPR. AED located at east stairwell, Level 2. Estimated ETA for paramedics: 8 minutes.'},
+      {heading:'PRIORITY ACTIONS', color:'pending', body:'1. Clear 3-metre radius — assign one person to crowd control now.\n2. Retrieve AED from Level 2 east stairwell — runner needed immediately.\n3. Keep CPR continuous — do not stop until paramedics arrive.'},
+      {heading:'COMMS READY', color:'signal', body:'Local emergency medical dispatch networks connected.'}
+    ],
+    tasks:[
+      {id:'m1',num:'01',title:'Clear the Area',description:'Remove bystanders, maintain 3m radius.'},
+      {id:'m2',num:'02',title:'Retrieve AED',description:'East stairwell, Level 2 — run now.'},
+      {id:'m3',num:'03',title:'Direct Paramedics',description:'Meet at main entrance, guide to patient.'},
+      {id:'m4',num:'04',title:'Document Incident',description:'Log timeline for emergency services.'}
+    ],
+    primaryCallLabel:'AMBULANCE', primaryCallIcon:'🚑',
+    primaryScript:'Ambulance, this is [YOUR NAME]. I\'m reporting a cardiac emergency at [YOUR LOCATION]. Adult male, approximately 50 years old, unresponsive, CPR in progress by a bystander. AED is being retrieved. We have someone at the main entrance to guide you in. Please confirm your ETA.',
+    secondaryCallLabel:'POLICE', secondaryCallIcon:'🚔',
+    secondaryScript:'This is [YOUR NAME] calling from [YOUR LOCATION]. We have a medical emergency — an adult male is unresponsive and receiving CPR. We need police presence immediately to assist with crowd control and secure the area for incoming paramedics. Please advise on ETA.'
+  },
+  security: {
+    id:'security', label:'SECURITY BREACH', subLabel:'Intrusion / Threat', icon:'🔒', color:'#3d8eff',
+    aiBlocks:[
+      {heading:'SITUATION ASSESSMENT', color:'live', body:'Unauthorized individual reported in restricted zone B. Hostile behavior suspected. Campus security systems actively tracking subject.'},
+      {heading:'PRIORITY ACTIONS', color:'pending', body:'1. Initiate localized lockdown for Zone B.\n2. Secure all electronic entry points.\n3. Instruct staff to remain in offices out of sight.'},
+      {heading:'COMMS READY', color:'signal', body:'Police and Security control lines standing by.'}
+    ],
+    tasks:[
+      {id:'s1',num:'01',title:'Lockdown Zone B',description:'Seal all electronic doors in area.'},
+      {id:'s2',num:'02',title:'Review CCTV',description:'Track subject movement on cameras.'},
+      {id:'s3',num:'03',title:'Alert Staff',description:'Send SMS alert to stay in place.'},
+      {id:'s4',num:'04',title:'Brief Police',description:'Meet units at security desk.'}
+    ],
+    primaryCallLabel:'POLICE', primaryCallIcon:'🚔',
+    primaryScript:'Police, we have an active security threat at [YOUR LOCATION]. Unauthorized individual in restricted zone, exhibiting hostile behavior. Full building lockdown initiated. Subject last seen on Level 2.',
+    secondaryCallLabel:'SECURITY', secondaryCallIcon:'🛡️',
+    secondaryScript:'Control room, implement hard lockdown on Zone B immediately. We have a breach. Prepare to hand over CCTV feeds to local law enforcement.'
+  },
+  flood: {
+    id:'flood', label:'CRITICAL FLOOD', subLabel:'Water / Structural', icon:'🌊', color:'#3d8eff',
+    aiBlocks:[
+      {heading:'SITUATION ASSESSMENT', color:'live', body:'Water main rupture reported in basement level. Server racks at risk. Water level rising 2cm/min.'},
+      {heading:'PRIORITY ACTIONS', color:'pending', body:'1. Shut off primary water main.\n2. Cut power to basement level 1.\n3. Deploy sandbags at server room door.'},
+      {heading:'COMMS READY', color:'signal', body:'Utility response teams mapped and ready.'}
+    ],
+    tasks:[
+      {id:'fl1',num:'01',title:'Shut Water Main',description:'Main valve located in utilities corridor.'},
+      {id:'fl2',num:'02',title:'Cut Local Power',description:'Isolate basement circuits.'},
+      {id:'fl3',num:'03',title:'Protect Servers',description:'Deploy water barricades.'},
+      {id:'fl4',num:'04',title:'Evacuate Basement',description:'Ensure no personnel remain below ground.'}
+    ],
+    primaryCallLabel:'FACILITIES', primaryCallIcon:'🔧',
+    primaryScript:'Facilities team, we have a major pipe rupture in the basement of [YOUR LOCATION]. Shut down primary water feed immediately and dispatch emergency pumps.',
+    secondaryCallLabel:'UTILITIES', secondaryCallIcon:'⚡',
+    secondaryScript:'Emergency shut-off required for [YOUR LOCATION]. We are actively flooding and need grid isolation for the lower levels to prevent electrical hazards.'
+  },
+  power: {
+    id:'power', label:'POWER FAILURE', subLabel:'Grid / Infrastructure', icon:'⚡', color:'#f5a623',
+    aiBlocks:[
+      {heading:'SITUATION ASSESSMENT', color:'live', body:'Complete grid failure detected. Backup generator failed to start. UPS battery at 45 mins remaining.'},
+      {heading:'PRIORITY ACTIONS', color:'pending', body:'1. Safely power down non-essential servers.\n2. Dispatch engineer to check generator.\n3. Provide flashlights to floor marshals.'},
+      {heading:'COMMS READY', color:'signal', body:'Direct line to grid operators enabled.'}
+    ],
+    tasks:[
+      {id:'p1',num:'01',title:'Check Generator',description:'Diagnose startup failure.'},
+      {id:'p2',num:'02',title:'Server Shutdown',description:'Execute graceful shutdown sequence.'},
+      {id:'p3',num:'03',title:'Clear Elevators',description:'Ensure nobody is trapped in lifts.'},
+      {id:'p4',num:'04',title:'Distribute Lights',description:'Deploy emergency lighting kits.'}
+    ],
+    primaryCallLabel:'PROVIDER', primaryCallIcon:'⚡',
+    primaryScript:'Reporting a total outage at [YOUR LOCATION]. Generator failed, UPS critical. Need immediate ETA on grid restoration.',
+    secondaryCallLabel:'FACILITIES', secondaryCallIcon:'🔧',
+    secondaryScript:'Generator failed to auto-start. Dispatch duty engineer to the roof plant immediately. We have 45 minutes of UPS remaining.'
+  },
+  other: {
+    id:'other', label:'UNCLASSIFIED', subLabel:'Unknown / Developing', icon:'⚫', color:'#7a8999',
+    aiBlocks:[
+      {heading:'SITUATION ASSESSMENT', color:'live', body:'Unknown anomaly reported. Assessing threat vectors based on incoming sensor and user inputs. Stand by.'},
+      {heading:'PRIORITY ACTIONS', color:'pending', body:'1. Establish visual confirmation of threat.\n2. Secure immediate perimeter.\n3. Await further analysis.'},
+      {heading:'COMMS READY', color:'signal', body:'All external dispatch protocols mapped to generic lines.'}
+    ],
+    tasks:[
+      {id:'o1',num:'01',title:'Assess Situation',description:'Gather info from witnesses.'},
+      {id:'o2',num:'02',title:'Secure Area',description:'Keep bystanders away from the sector.'},
+      {id:'o3',num:'03',title:'Log Details',description:'Note times, persons, descriptions.'},
+      {id:'o4',num:'04',title:'Prepare Comms',description:'Standby for authority contact.'}
+    ],
+    primaryCallLabel:'POLICE', primaryCallIcon:'🚔',
+    primaryScript:'Police, reporting an unclassified incident at [YOUR LOCATION]. Currently gathering details. Requesting a unit on standby while we assess the threat level.',
+    secondaryCallLabel:'EMERGENCY LINE', secondaryCallIcon:'📞',
+    secondaryScript:'Operator, we have an unclassified emergency at [YOUR LOCATION]. Requesting guidance and possible multi-agency dispatch once situation is confirmed.'
+  }
+};
+
+// ── STATE ──
+const state = {
+  screen: 'landing',
+  selectedCrisis: null,
+  incidentId: null,
+  incidentStartTime: null,
+  taskStates: {},
+  taskOwners: {},
+  taskCompletedAt: {},
+  members: [],
+  activityLog: [],
+  isResolved: false,
+  resolvedAt: null
+};
+
+// ── EKG STATE ──
+const ekgState = { mode: 'live' };
+
+// ════════════════════════════════════════════════════
+//  HEX GRID
+// ════════════════════════════════════════════════════
+const HEXES = [
+  { id:'fire',     cx:150, cy:160 },
+  { id:'medical',  cx:262, cy:100 },
+  { id:'security', cx:374, cy:160 },
+  { id:'flood',    cx:486, cy:100 },
+  { id:'power',    cx:598, cy:160 },
+  { id:'other',    cx:374, cy:280 },
+];
+const HEX_SIZE = 86;
+
+function hexPoints(cx, cy, s) {
+  const pts = [];
+  for (let i = 0; i < 6; i++) {
+    const a = Math.PI / 180 * (60 * i - 30);
+    pts.push([cx + s * Math.cos(a), cy + s * Math.sin(a)]);
+  }
+  return pts.map(p => p.join(',')).join(' ');
+}
+
+function buildHexGrid() {
+  const svg = document.getElementById('hex-grid-svg');
+  svg.innerHTML = '';
+
+  const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
+  Object.keys(CRISIS_DATA).forEach(id => {
+    const c = CRISIS_DATA[id];
+    const filter = document.createElementNS('http://www.w3.org/2000/svg','filter');
+    filter.setAttribute('id', `glow-${id}`);
+    filter.setAttribute('x','-60%'); filter.setAttribute('y','-60%');
+    filter.setAttribute('width','220%'); filter.setAttribute('height','220%');
+    const fe = document.createElementNS('http://www.w3.org/2000/svg','feDropShadow');
+    fe.setAttribute('dx','0'); fe.setAttribute('dy','0');
+    fe.setAttribute('stdDeviation','10');
+    fe.setAttribute('flood-color', c.color);
+    fe.setAttribute('flood-opacity','0.55');
+    filter.appendChild(fe); defs.appendChild(filter);
+  });
+  svg.appendChild(defs);
+
+  HEXES.forEach(h => {
+    const c = CRISIS_DATA[h.id];
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('class','hex-group');
+    g.setAttribute('data-id', h.id);
+    g.style.cursor = 'pointer';
+    g.addEventListener('click', () => selectCrisis(h.id));
+
+    // Hover fill overlay
+    const hoverPoly = document.createElementNS('http://www.w3.org/2000/svg','polygon');
+    hoverPoly.setAttribute('points', hexPoints(h.cx, h.cy, HEX_SIZE));
+    hoverPoly.setAttribute('fill', `${c.color}00`);
+    hoverPoly.setAttribute('class','hex-hover');
+    g.appendChild(hoverPoly);
+
+    // Outer border
+    const outerPoly = document.createElementNS('http://www.w3.org/2000/svg','polygon');
+    outerPoly.setAttribute('points', hexPoints(h.cx, h.cy, HEX_SIZE));
+    outerPoly.setAttribute('fill','#0c1018');
+    outerPoly.setAttribute('stroke','#1c2636');
+    outerPoly.setAttribute('stroke-width','1.5');
+    outerPoly.setAttribute('class','hex-outer');
+    g.appendChild(outerPoly);
+
+    // Inner fill
+    const innerPoly = document.createElementNS('http://www.w3.org/2000/svg','polygon');
+    innerPoly.setAttribute('points', hexPoints(h.cx, h.cy, HEX_SIZE - 7));
+    innerPoly.setAttribute('fill','rgba(0,0,0,0.25)');
+    innerPoly.setAttribute('stroke','none');
+    innerPoly.setAttribute('class','hex-inner');
+    g.appendChild(innerPoly);
+
+    // Animated border (selected)
+    const borderPoly = document.createElementNS('http://www.w3.org/2000/svg','polygon');
+    borderPoly.setAttribute('points', hexPoints(h.cx, h.cy, HEX_SIZE));
+    borderPoly.setAttribute('fill','none');
+    borderPoly.setAttribute('stroke', c.color);
+    borderPoly.setAttribute('stroke-width','2');
+    borderPoly.setAttribute('stroke-dasharray','16 380');
+    borderPoly.setAttribute('class','hex-border-anim');
+    borderPoly.style.opacity = '0';
+    const anim = document.createElementNS('http://www.w3.org/2000/svg','animateTransform');
+    anim.setAttribute('attributeName','transform');
+    anim.setAttribute('type','rotate');
+    anim.setAttribute('from',`0 ${h.cx} ${h.cy}`);
+    anim.setAttribute('to',`360 ${h.cx} ${h.cy}`);
+    anim.setAttribute('dur','2.5s');
+    anim.setAttribute('repeatCount','indefinite');
+    borderPoly.appendChild(anim);
+    g.appendChild(borderPoly);
+
+    // Icon
+    const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+    txt.setAttribute('x', h.cx); txt.setAttribute('y', h.cy + 4);
+    txt.setAttribute('text-anchor','middle'); txt.setAttribute('dominant-baseline','middle');
+    txt.setAttribute('font-size','30'); txt.setAttribute('class','hex-icon');
+    txt.textContent = c.icon;
+    g.appendChild(txt);
+
+    // Label
+    const lbl = document.createElementNS('http://www.w3.org/2000/svg','text');
+    lbl.setAttribute('x', h.cx); lbl.setAttribute('y', h.cy + HEX_SIZE - 13);
+    lbl.setAttribute('text-anchor','middle');
+    lbl.setAttribute('font-size','7'); lbl.setAttribute('font-family','JetBrains Mono');
+    lbl.setAttribute('letter-spacing','2.5'); lbl.setAttribute('fill','#334455');
+    lbl.setAttribute('class','hex-label');
+    lbl.textContent = c.label;
+    g.appendChild(lbl);
+
+    // Sublabel
+    const sub = document.createElementNS('http://www.w3.org/2000/svg','text');
+    sub.setAttribute('x', h.cx); sub.setAttribute('y', h.cy + HEX_SIZE - 4);
+    sub.setAttribute('text-anchor','middle');
+    sub.setAttribute('font-size','5.5'); sub.setAttribute('font-family','JetBrains Mono');
+    sub.setAttribute('fill','#1e2f3f'); sub.setAttribute('class','hex-sub');
+    sub.textContent = c.subLabel;
+    g.appendChild(sub);
+
+    svg.appendChild(g);
+  });
+}
+
+function selectCrisis(id) {
+  state.selectedCrisis = id;
+  const c = CRISIS_DATA[id];
+  document.getElementById('selected-label').textContent = c.label;
+  document.getElementById('sys-status-word').textContent = 'ARMED';
+  document.getElementById('sys-status-word').classList.add('armed');
+  document.getElementById('declare-btn').classList.remove('no-crisis');
+  ekgState.mode = 'amber';
+
+  document.querySelectorAll('.hex-group').forEach(g => {
+    const gid = g.getAttribute('data-id');
+    const outer = g.querySelector('.hex-outer');
+    const inner = g.querySelector('.hex-inner');
+    const border = g.querySelector('.hex-border-anim');
+    const lbl = g.querySelector('.hex-label');
+    const sub = g.querySelector('.hex-sub');
+    if (gid === id) {
+      const col = CRISIS_DATA[id].color;
+      outer.setAttribute('stroke', col); outer.setAttribute('stroke-width','2.5');
+      inner.setAttribute('fill', `${col}12`);
+      border.style.opacity = '1';
+      g.setAttribute('filter', `url(#glow-${id})`);
+      lbl.setAttribute('fill', col);
+      sub.setAttribute('fill', `${col}80`);
+      g.style.opacity = '1';
+    } else {
+      outer.setAttribute('stroke','#1c2636'); outer.setAttribute('stroke-width','1.5');
+      inner.setAttribute('fill','rgba(0,0,0,0.25)');
+      border.style.opacity = '0';
+      g.removeAttribute('filter');
+      lbl.setAttribute('fill','#334455');
+      sub.setAttribute('fill','#1e2f3f');
+      g.style.opacity = '0.3';
+    }
+  });
+}
+
+// ════════════════════════════════════════════════════
+//  ARM SEQUENCE
+// ════════════════════════════════════════════════════
+let dialAngle = 0, dialDragging = false, dialStartAngle = 0, dialProgress = 0;
+let holdInterval = null, holdProgress = 0;
+
+function openArmSequence() {
+  if (!state.selectedCrisis) return;
+  dialAngle = 0; dialProgress = 0; holdProgress = 0;
+  updateDial(0);
+  document.getElementById('hold-btn').classList.add('locked');
+  document.getElementById('hold-fill').style.transform = 'scaleX(0)';
+  document.getElementById('hold-label').textContent = 'HOLD TO CONFIRM CRISIS';
+  document.getElementById('arm-crisis-title').textContent = `ARMING — ${CRISIS_DATA[state.selectedCrisis].label}`;
+  document.getElementById('arm-overlay').classList.add('active');
+  setupDialDrag();
+}
+
+function closeArmSequence() {
+  document.getElementById('arm-overlay').classList.remove('active');
+  clearInterval(holdInterval);
+}
+
+function updateDial(pct) {
+  const circumference = 415;
+  document.getElementById('dial-arc').setAttribute('stroke-dashoffset', circumference * (1 - pct/100));
+  const a = ((pct/100) * 360 - 90) * Math.PI / 180;
+  const hx = 82 + 66 * Math.cos(a);
+  const hy = 82 + 66 * Math.sin(a);
+  document.getElementById('dial-handle').setAttribute('cx', hx);
+  document.getElementById('dial-handle').setAttribute('cy', hy);
+  document.getElementById('dial-text').textContent = Math.round(pct) + '%';
+  document.getElementById('dial-pct-label').textContent = Math.round(pct) + '%';
+  if (pct >= 100) {
+    document.getElementById('hold-btn').classList.remove('locked');
+  }
+}
+
+function getAngle(e, container) {
+  const r = container.getBoundingClientRect();
+  const cx = r.left + r.width/2, cy = r.top + r.height/2;
+  const px = (e.touches ? e.touches[0].clientX : e.clientX) - cx;
+  const py = (e.touches ? e.touches[0].clientY : e.clientY) - cy;
+  return Math.atan2(py, px) * 180 / Math.PI;
+}
+
+function setupDialDrag() {
+  const container = document.getElementById('dial-container');
+  container.onmousedown = container.ontouchstart = (e) => {
+    e.preventDefault();
+    dialDragging = true;
+    dialStartAngle = getAngle(e, container) - dialAngle;
+  };
+  document.onmousemove = document.ontouchmove = (e) => {
+    if (!dialDragging) return;
+    e.preventDefault();
+    let a = getAngle(e, container) - dialStartAngle;
+    dialAngle = ((a % 360) + 360) % 360;
+    dialProgress = Math.min(100, dialAngle / 270 * 100);
+    updateDial(dialProgress);
+  };
+  document.onmouseup = document.ontouchend = () => { dialDragging = false; };
+}
+
+function startHold(e) {
+  if (e) e.preventDefault();
+  if (document.getElementById('hold-btn').classList.contains('locked')) return;
+  holdInterval = setInterval(() => {
+    holdProgress = Math.min(1, holdProgress + 0.034);
+    document.getElementById('hold-fill').style.transform = `scaleX(${holdProgress})`;
+    document.getElementById('hold-fill').style.transition = 'none';
+    if (holdProgress >= 1) {
+      clearInterval(holdInterval);
+      document.getElementById('hold-label').textContent = '✓ CRISIS DECLARED';
+      setTimeout(launchIncident, 380);
+    }
+  }, 50);
+}
+
+function stopHold() {
+  clearInterval(holdInterval);
+  if (holdProgress < 1) {
+    holdProgress = 0;
+    document.getElementById('hold-fill').style.transition = 'transform 0.28s ease';
+    document.getElementById('hold-fill').style.transform = 'scaleX(0)';
+    document.getElementById('hold-label').textContent = 'HOLD TO CONFIRM CRISIS';
+  }
+}
+
+// ════════════════════════════════════════════════════
+//  LAUNCH INCIDENT
+// ════════════════════════════════════════════════════
+function launchIncident() {
+  closeArmSequence();
+  const id = Math.floor(Math.random() * 65535).toString(16).toUpperCase().padStart(4,'0');
+  state.incidentId = id;
+  state.incidentStartTime = Date.now();
+  state.taskStates = {};
+  state.taskOwners = {};
+  state.taskCompletedAt = {};
+  state.activityLog = [];
+  state.isResolved = false;
+  state.resolvedAt = null;
+  state.members = [{ initials:'YOU', name:'You', color:'#00e87a', role:'INCIDENT LEAD' }];
+
+  const c = CRISIS_DATA[state.selectedCrisis];
+  document.getElementById('landing').style.display = 'none';
+  document.getElementById('incident-room').classList.add('active');
+  document.getElementById('inc-grb-id').textContent = `GRB-${id}`;
+  document.getElementById('inc-type-label').textContent = c.label;
+  document.getElementById('primary-icon').textContent = c.primaryCallIcon;
+  document.getElementById('primary-label').textContent = c.primaryCallLabel;
+  document.getElementById('secondary-icon').textContent = c.secondaryCallIcon;
+  document.getElementById('secondary-label').textContent = c.secondaryCallLabel;
+
+  ekgState.mode = 'crisis';
+  document.querySelector('.spine-icon.active')?.classList.add('crisis-hot');
+
+  addLog('system', `Incident active: GRB-${id}`);
+  buildTaskStack();
+  startTriageTyping();
+  startTimer();
+  startRosterRing();
+  startSimulator();
+}
+
+// ════════════════════════════════════════════════════
+//  TASKS
+// ════════════════════════════════════════════════════
+function buildTaskStack() {
+  const c = CRISIS_DATA[state.selectedCrisis];
+  const container = document.getElementById('task-stack');
+  container.innerHTML = '';
+  c.tasks.forEach(task => container.appendChild(createTaskCard(task)));
+  updateTaskCounter();
+}
+
+function createTaskCard(task) {
+  const div = document.createElement('div');
+  div.className = 'task-card';
+  div.id = `task-${task.id}`;
+  div.onclick = () => cycleTask(task.id, task.title);
+  renderTaskCard(div, task);
+  return div;
+}
+
+function renderTaskCard(div, task) {
+  const s = state.taskStates[task.id] || 'unclaimed';
+  const owner = state.taskOwners[task.id];
+  const completedAt = state.taskCompletedAt[task.id];
+  div.className = 'task-card' + (s==='claimed' ? ' claimed' : s==='completed' ? ' completed' : '');
+
+  let footerHTML = '';
+  if (s === 'unclaimed') footerHTML = `<span class="task-status-dot" style="background:var(--text-4)"></span> TAP TO CLAIM →`;
+  else if (s === 'claimed') footerHTML = `<span class="task-status-dot"></span> ${(owner||'YOU').toUpperCase()} — IN PROGRESS`;
+  else footerHTML = `<span class="task-status-dot" style="background:var(--live)"></span> ${completedAt} · BY ${(owner||'YOU').toUpperCase()}`;
+
+  div.innerHTML = `
+    ${s==='completed' ? '<div class="task-check">✓</div>' : ''}
+    <div class="task-num">${task.num}</div>
+    <div class="task-title">${task.title}</div>
+    <div class="task-desc">${task.description}</div>
+    <div class="task-footer">${footerHTML}</div>
+  `;
+}
+
+function cycleTask(taskId, taskTitle) {
+  const current = state.taskStates[taskId] || 'unclaimed';
+  const next = current==='unclaimed' ? 'claimed' : current==='claimed' ? 'completed' : 'unclaimed';
+  setTaskState(taskId, taskTitle, next, 'YOU');
+}
+
+function setTaskState(taskId, taskTitle, newState, user) {
+  const timeStr = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  state.taskStates[taskId] = newState;
+  if (newState === 'completed') state.taskCompletedAt[taskId] = timeStr;
+  state.taskOwners[taskId] = newState !== 'unclaimed' ? user : null;
+
+  const c = CRISIS_DATA[state.selectedCrisis];
+  const task = c.tasks.find(t => t.id === taskId);
+  const div = document.getElementById(`task-${taskId}`);
+  if (div && task) renderTaskCard(div, task);
+  updateTaskCounter();
+
+  if (newState === 'claimed') addLog('task_claim', `"${taskTitle}" claimed by ${user}`);
+  else if (newState === 'completed') addLog('task_done', `"${taskTitle}" completed by ${user}`);
+}
+
+function updateTaskCounter() {
+  const completed = Object.values(state.taskStates).filter(s => s==='completed').length;
+  document.getElementById('task-counter').textContent = `${completed}/4 COMPLETE`;
+}
+
+// ════════════════════════════════════════════════════
+//  TRIAGE TYPING
+// ════════════════════════════════════════════════════
+let triageTimeout = null;
+function startTriageTyping() {
+  const c = CRISIS_DATA[state.selectedCrisis];
+  const container = document.getElementById('triage-content');
+  container.innerHTML = '';
+  let blockIdx = 0;
+
+  function typeBlock(block) {
+    const div = document.createElement('div');
+    div.className = 'triage-block';
+    const heading = document.createElement('div');
+    heading.className = `triage-block-heading ${block.color}`;
+    heading.textContent = block.heading;
+    div.appendChild(heading);
+    const txt = document.createElement('div');
+    txt.className = 'triage-text';
+    div.appendChild(txt);
+    const cursor = document.createElement('span');
+    cursor.className = 'triage-cursor';
+    txt.appendChild(cursor);
+    container.appendChild(div);
+
+    let i = 0;
+    function typeChar() {
+      if (i < block.body.length) {
+        txt.insertBefore(document.createTextNode(block.body[i]), cursor);
+        i++;
+        triageTimeout = setTimeout(typeChar, 16);
+      } else {
+        cursor.remove();
+        blockIdx++;
+        if (blockIdx < c.aiBlocks.length) setTimeout(() => typeBlock(c.aiBlocks[blockIdx]), 450);
+      }
+    }
+    setTimeout(typeChar, 280);
+  }
+
+  typeBlock(c.aiBlocks[0]);
+}
+
+// ════════════════════════════════════════════════════
+//  TIMER
+// ════════════════════════════════════════════════════
+let timerInterval = null;
+function startTimer() {
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    if (state.isResolved) { clearInterval(timerInterval); return; }
+    const elapsed = Math.floor((Date.now() - state.incidentStartTime) / 1000);
+    const m = String(Math.floor(elapsed/60)).padStart(2,'0');
+    const s = String(elapsed%60).padStart(2,'0');
+    document.getElementById('elapsed-display').textContent = `${m}:${s}`;
+  }, 1000);
+}
+
+// ════════════════════════════════════════════════════
+//  ROSTER RING
+// ════════════════════════════════════════════════════
+function startRosterRing() {
+  state.members = [{ initials:'YOU', name:'You', color:'#00e87a', role:'INCIDENT LEAD', activity:1 }];
+  renderRoster();
+  setTimeout(() => {
+    state.members.push({ initials:'MK', name:'Marcus K.', color:'#3d8eff', role:'MEMBER', activity:0.6 });
+    addLog('member', 'Marcus K. joined');
+    renderRoster();
+  }, 4000);
+  setTimeout(() => {
+    state.members.push({ initials:'AR', name:'Aisha R.', color:'#f5a623', role:'MEMBER', activity:0.8 });
+    addLog('member', 'Aisha R. joined');
+    renderRoster();
+  }, 10000);
+}
+
+function renderRoster() {
+  const svg = document.getElementById('roster-svg');
+  svg.innerHTML = '';
+  const cx = 130, cy = 130, ringR = 95;
+
+  const ring = document.createElementNS('http://www.w3.org/2000/svg','circle');
+  ring.setAttribute('cx',cx); ring.setAttribute('cy',cy); ring.setAttribute('r',ringR);
+  ring.setAttribute('fill','none'); ring.setAttribute('stroke','#1c2636');
+  ring.setAttribute('stroke-width','1'); ring.setAttribute('stroke-dasharray','4 7');
+  svg.appendChild(ring);
+
+  const zone = document.createElementNS('http://www.w3.org/2000/svg','circle');
+  zone.setAttribute('cx',cx); zone.setAttribute('cy',cy); zone.setAttribute('r','36');
+  zone.setAttribute('fill','rgba(255,45,45,0.04)');
+  zone.setAttribute('stroke','rgba(255,45,45,0.14)'); zone.setAttribute('stroke-width','1');
+  svg.appendChild(zone);
+
+  const zoneTxt = document.createElementNS('http://www.w3.org/2000/svg','text');
+  zoneTxt.setAttribute('x',cx); zoneTxt.setAttribute('y',cy+4);
+  zoneTxt.setAttribute('text-anchor','middle'); zoneTxt.setAttribute('dominant-baseline','middle');
+  zoneTxt.setAttribute('font-size','6.5'); zoneTxt.setAttribute('font-family','JetBrains Mono');
+  zoneTxt.setAttribute('fill','rgba(255,45,45,0.45)'); zoneTxt.setAttribute('letter-spacing','2.5');
+  zoneTxt.textContent = 'INCIDENT';
+  svg.appendChild(zoneTxt);
+
+  const n = state.members.length;
+  state.members.forEach((m, i) => {
+    const angle = (i/n) * 2*Math.PI - Math.PI/2;
+    const mx = cx + ringR * Math.cos(angle);
+    const my = cy + ringR * Math.sin(angle);
+
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',mx); line.setAttribute('y1',my);
+    line.setAttribute('x2',cx); line.setAttribute('y2',cy);
+    line.setAttribute('stroke', m.color); line.setAttribute('stroke-width','1');
+    line.setAttribute('stroke-dasharray','3 6'); line.setAttribute('opacity','0.28');
+    svg.appendChild(line);
+
+    const pulseR = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    pulseR.setAttribute('cx',mx); pulseR.setAttribute('cy',my); pulseR.setAttribute('r','16');
+    pulseR.setAttribute('fill','none'); pulseR.setAttribute('stroke', m.color);
+    pulseR.setAttribute('stroke-width','1'); pulseR.setAttribute('opacity','0.25');
+    const animPulse = document.createElementNS('http://www.w3.org/2000/svg','animate');
+    animPulse.setAttribute('attributeName','r'); animPulse.setAttribute('values','14;20;14');
+    animPulse.setAttribute('dur', `${2+i*0.6}s`); animPulse.setAttribute('repeatCount','indefinite');
+    pulseR.appendChild(animPulse);
+    svg.appendChild(pulseR);
+
+    const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    circle.setAttribute('cx',mx); circle.setAttribute('cy',my); circle.setAttribute('r','14');
+    circle.setAttribute('fill', m.color); circle.setAttribute('opacity','0.9');
+    svg.appendChild(circle);
+
+    const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+    txt.setAttribute('x',mx); txt.setAttribute('y',my+1);
+    txt.setAttribute('text-anchor','middle'); txt.setAttribute('dominant-baseline','middle');
+    txt.setAttribute('font-size','7'); txt.setAttribute('font-family','Space Grotesk');
+    txt.setAttribute('font-weight','700'); txt.setAttribute('fill','#000');
+    txt.textContent = m.initials;
+    svg.appendChild(txt);
+  });
+}
+
+// ════════════════════════════════════════════════════
+//  ACTIVITY LOG
+// ════════════════════════════════════════════════════
+function addLog(type, title) {
+  const time = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  state.activityLog.unshift({ type, title, time });
+  renderActivity();
+  showToast(type, title);
+}
+
+function renderActivity() {
+  const list = document.getElementById('activity-list');
+  list.innerHTML = state.activityLog.slice(0,22).map(l => `
+    <div class="activity-item ${l.type}">
+      <div class="activity-time">${l.time}</div>
+      <div class="activity-msg">${l.title}</div>
+    </div>
+  `).join('');
+}
+
+// ════════════════════════════════════════════════════
+//  TOASTS
+// ════════════════════════════════════════════════════
+function showToast(type, message) {
+  const colors = { system:'#00e87a', task_claim:'#f5a623', task_done:'#00e87a', member:'#3d8eff', comms:'#ff2d2d', copy:'#7a8999' };
+  const color = colors[type] || '#7a8999';
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.innerHTML = `<div class="toast-dot" style="background:${color}"></div><div>${message}</div>`;
+  document.getElementById('toast-stack').appendChild(toast);
+  setTimeout(() => {
+    toast.style.transition = 'opacity 0.28s, transform 0.28s';
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(20px)';
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+// ════════════════════════════════════════════════════
+//  SIMULATOR
+// ════════════════════════════════════════════════════
+let simTimeouts = [];
+function startSimulator() {
+  simTimeouts.forEach(clearTimeout);
+  simTimeouts = [];
+  const c = CRISIS_DATA[state.selectedCrisis];
+
+  simTimeouts.push(setTimeout(() => addLog('system','Establishing secure comms channel...'), 2200));
+  simTimeouts.push(setTimeout(() => addLog('system','Cross-referencing live sensor data...'), 8500));
+  simTimeouts.push(setTimeout(() => addLog('system','Local authorities notified of active incident.'), 15500));
+
+  if (c.tasks[0]) {
+    simTimeouts.push(setTimeout(() => setTaskState(c.tasks[0].id, c.tasks[0].title, 'claimed', 'Marcus K.'), 6200));
+    simTimeouts.push(setTimeout(() => setTaskState(c.tasks[0].id, c.tasks[0].title, 'completed', 'Marcus K.'), 14500));
+  }
+  if (c.tasks[1]) {
+    simTimeouts.push(setTimeout(() => setTaskState(c.tasks[1].id, c.tasks[1].title, 'claimed', 'Aisha R.'), 11200));
+    simTimeouts.push(setTimeout(() => setTaskState(c.tasks[1].id, c.tasks[1].title, 'completed', 'Aisha R.'), 22500));
+  }
+}
+
+// ════════════════════════════════════════════════════
+//  CALL MODAL
+// ════════════════════════════════════════════════════
+let currentScript = '';
+function openCallModal(type) {
+  const c = CRISIS_DATA[state.selectedCrisis];
+  const script = type==='primary' ? c.primaryScript : c.secondaryScript;
+  const label = type==='primary' ? c.primaryCallLabel : c.secondaryCallLabel;
+  currentScript = script;
+  document.getElementById('modal-title').textContent = `${label} SCRIPT`;
+  document.getElementById('modal-copy-btn').textContent = 'COPY SCRIPT';
+
+  const content = document.getElementById('modal-script-content');
+  content.innerHTML = script.split(/(\[.*?\])/).map(part =>
+    part.startsWith('[') && part.endsWith(']')
+      ? `<span class="script-placeholder">${part}</span>`
+      : part
+  ).join('');
+
+  document.getElementById('modal-overlay').classList.add('active');
+  addLog('comms', `Opened ${label} protocol`);
+}
+
+function closeModalOverlay(e) {
+  if (e.target === document.getElementById('modal-overlay'))
+    document.getElementById('modal-overlay').classList.remove('active');
+}
+
+function copyScript() {
+  navigator.clipboard.writeText(currentScript).then(() => {
+    document.getElementById('modal-copy-btn').textContent = '✓ COPIED';
+    addLog('copy','Script copied');
+    setTimeout(() => document.getElementById('modal-copy-btn').textContent = 'COPY SCRIPT', 2000);
+  }).catch(() => {
+    document.getElementById('modal-copy-btn').textContent = '✓ COPIED';
+    setTimeout(() => document.getElementById('modal-copy-btn').textContent = 'COPY SCRIPT', 2000);
+  });
+}
+
+// ════════════════════════════════════════════════════
+//  SHARE OVERLAY
+// ════════════════════════════════════════════════════
+let shareCountdownInterval = null;
+function openShareOverlay() {
+  const id = state.incidentId || '0000';
+  document.getElementById('share-room-id').textContent = `GRB-${id}`;
+  document.getElementById('share-copy-btn').textContent = 'COPY INVITE LINK';
+
+  // Simple QR-ish pattern
+  drawSimpleQR();
+
+  // Countdown
+  clearInterval(shareCountdownInterval);
+  let seconds = 119;
+  document.getElementById('share-countdown').textContent = '1:59';
+  shareCountdownInterval = setInterval(() => {
+    seconds--;
+    if (seconds <= 0) { clearInterval(shareCountdownInterval); return; }
+    const m = Math.floor(seconds/60);
+    const s = String(seconds%60).padStart(2,'0');
+    document.getElementById('share-countdown').textContent = `${m}:${s}`;
+  }, 1000);
+
+  document.getElementById('share-overlay').classList.add('active');
+}
+
+function closeShareOverlay(e) {
+  if (e.target === document.getElementById('share-overlay')) {
+    document.getElementById('share-overlay').classList.remove('active');
+    clearInterval(shareCountdownInterval);
+  }
+}
+
+function copyShareLink() {
+  const id = state.incidentId || '0000';
+  const url = `groundbase.app/room/GRB-${id}`;
+  navigator.clipboard.writeText(url).catch(() => {});
+  document.getElementById('share-copy-btn').textContent = 'COPIED ✓';
+  document.getElementById('share-url-btn').textContent = 'COPIED ✓';
+  setTimeout(() => {
+    document.getElementById('share-copy-btn').textContent = 'COPY INVITE LINK';
+    const id2 = state.incidentId || '0000';
+    document.getElementById('share-url-btn').innerHTML = `groundbase.app/room/GRB-<span id="share-room-id">GRB-${id2}</span>`;
+  }, 2000);
+}
+
+function drawSimpleQR() {
+  const canvas = document.getElementById('qr-canvas');
+  const ctx = canvas.getContext('2d');
+  const size = 120, cell = 6, cols = Math.floor(size/cell);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0,0,size,size);
+  // Deterministic seed from incidentId
+  const seed = parseInt(state.incidentId || '0', 16);
+  const rng = (i) => ((seed * 1664525 + 1013904223 + i * 22695477) & 0x7fffffff) / 0x7fffffff;
+
+  ctx.fillStyle = '#000';
+  for (let r=0; r<cols; r++) {
+    for (let c2=0; c2<cols; c2++) {
+      // Force corners for finder patterns
+      const inTL = r<4 && c2<4;
+      const inTR = r<4 && c2>=cols-4;
+      const inBL = r>=cols-4 && c2<4;
+      const borderFinder = (inTL||inTR||inBL) && (r===0||r===3||(r>=cols-4&&r===cols-4)||c2===0||c2===3||(c2>=cols-4&&c2===cols-4));
+      const dark = borderFinder || rng(r*cols+c2) > 0.55;
+      if (dark) ctx.fillRect(c2*cell, r*cell, cell, cell);
+    }
+  }
+  // Finder pattern corners (solid)
+  [[0,0],[0,cols-4],[cols-4,0]].forEach(([row,col]) => {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(col*cell, row*cell, 4*cell, 4*cell);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect((col+1)*cell, (row+1)*cell, 2*cell, 2*cell);
+    ctx.fillStyle = '#000';
+    ctx.fillRect((col+1)*cell+2, (row+1)*cell+2, cell-4, cell-4);
+  });
+}
+
+// ════════════════════════════════════════════════════
+//  CLOSE / RESOLVE
+// ════════════════════════════════════════════════════
+function showCloseConfirm() {
+  document.getElementById('close-confirm').classList.add('active');
+}
+
+function resolveIncident() {
+  const timeStr = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  state.isResolved = true; state.resolvedAt = timeStr;
+  document.getElementById('close-confirm').classList.remove('active');
+  addLog('system','Incident marked resolved');
+  document.getElementById('task-stack').style.display = 'none';
+  document.getElementById('resolved-banner').classList.add('show');
+  ekgState.mode = 'live';
+  clearInterval(timerInterval);
+  simTimeouts.forEach(clearTimeout);
+}
+
+function returnToLanding() {
+  state.selectedCrisis = null; state.incidentId = null;
+  state.incidentStartTime = null; state.isResolved = false;
+  state.taskStates = {}; state.taskOwners = {}; state.taskCompletedAt = {};
+  state.activityLog = []; state.members = [];
+
+  document.getElementById('incident-room').classList.remove('active');
+  document.getElementById('landing').style.display = 'flex';
+  document.getElementById('sys-status-word').textContent = 'STANDBY';
+  document.getElementById('sys-status-word').classList.remove('armed');
+  document.getElementById('declare-btn').classList.add('no-crisis');
+  document.getElementById('selected-label').textContent = '— NO SELECTION —';
+  document.getElementById('task-stack').style.display = 'flex';
+  document.getElementById('resolved-banner').classList.remove('show');
+  document.querySelector('.spine-icon.active')?.classList.remove('crisis-hot');
+
+  document.querySelectorAll('.hex-group').forEach(g => {
+    g.querySelector('.hex-outer').setAttribute('stroke','#1c2636');
+    g.querySelector('.hex-outer').setAttribute('stroke-width','1.5');
+    g.querySelector('.hex-inner').setAttribute('fill','rgba(0,0,0,0.25)');
+    g.querySelector('.hex-border-anim').style.opacity = '0';
+    g.removeAttribute('filter');
+    g.querySelector('.hex-label').setAttribute('fill','#334455');
+    const sub = g.querySelector('.hex-sub'); if (sub) sub.setAttribute('fill','#1e2f3f');
+    g.style.opacity = '1';
+  });
+  ekgState.mode = 'live';
+}
+
+// ════════════════════════════════════════════════════
+//  EKG PULSE LINE
+// ════════════════════════════════════════════════════
+function initEKG() {
+  const canvas = document.getElementById('ekg-canvas');
+  const ctx = canvas.getContext('2d');
+  let phase = 0;
+
+  function resize() { canvas.width = window.innerWidth; canvas.height = 26; }
+  resize();
+  window.addEventListener('resize', resize);
+
+  function drawEKG() {
+    canvas.width = window.innerWidth;
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0,0,W,H);
+    const colors = { live:'#00e87a', amber:'#f5a623', crisis:'#ff2d2d' };
+    const col = colors[ekgState.mode] || '#00e87a';
+    const speeds = { live:0.025, amber:0.055, crisis:0.11 };
+    phase += speeds[ekgState.mode] || 0.025;
+
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 1.4;
+    ctx.shadowBlur = 5;
+    ctx.shadowColor = col;
+    ctx.globalAlpha = 0.65;
+    ctx.beginPath();
+    for (let x=0; x<W; x++) {
+      const t = x/W * 4 * Math.PI + phase;
+      let y;
+      if (ekgState.mode === 'crisis') {
+        const spike = Math.sin(t*3) > 0.7 ? Math.sin(t*3)*11 : 0;
+        y = H/2 - Math.sin(t)*3 - spike - Math.random()*1.5;
+      } else if (ekgState.mode === 'amber') {
+        y = H/2 - Math.sin(t)*5 - (Math.sin(t*2) > 0.82 ? 8 : 0);
+      } else {
+        y = H/2 - Math.sin(t)*2.5 - (Math.sin(t*2) > 0.92 ? 11 : 0);
+      }
+      x === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    requestAnimationFrame(drawEKG);
+  }
+  drawEKG();
+}
+
+// ════════════════════════════════════════════════════
+//  OSCILLOSCOPE
+// ════════════════════════════════════════════════════
+function initOscilloscope() {
+  const canvas = document.getElementById('osc-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let phase = 0;
+
+  function resize() {
+    canvas.width = canvas.parentElement.clientWidth;
+    canvas.height = 78;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  function draw() {
+    resize();
+    const W = canvas.width, H = canvas.height;
+    ctx.fillStyle = '#010a06';
+    ctx.fillRect(0,0,W,H);
+
+    ctx.strokeStyle = 'rgba(0,255,136,0.05)'; ctx.lineWidth = 1;
+    for (let i=0; i<=4; i++) {
+      ctx.beginPath(); ctx.moveTo(0, H/4*i); ctx.lineTo(W, H/4*i); ctx.stroke();
+    }
+    for (let i=0; i<=8; i++) {
+      ctx.beginPath(); ctx.moveTo(W/8*i, 0); ctx.lineTo(W/8*i, H); ctx.stroke();
+    }
+
+    phase += 0.048;
+    ctx.strokeStyle = '#00ff88'; ctx.lineWidth = 1.4;
+    ctx.shadowBlur = 5; ctx.shadowColor = '#00ff88';
+    ctx.globalAlpha = 0.82;
+    ctx.beginPath();
+    for (let x=0; x<W; x++) {
+      const t = x/W * 6*Math.PI + phase;
+      const spike = Math.sin(t*1.5) > 0.86 ? Math.sin(t*1.5)*21 : 0;
+      const y = H/2 - Math.sin(t*0.7)*11 - spike;
+      x===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+// ════════════════════════════════════════════════════
+//  TOPO BACKGROUND
+// ════════════════════════════════════════════════════
+function initTopo() {
+  const canvas = document.getElementById('topo-canvas');
+  const ctx = canvas.getContext('2d');
+  let t = 0;
+
+  function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+  resize(); window.addEventListener('resize', resize);
+
+  function draw() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.strokeStyle = '#3d8eff'; ctx.lineWidth = 0.4;
+    for (let i=0; i<14; i++) {
+      ctx.beginPath();
+      const r = 70 + i*55 + Math.sin(t + i*0.4)*12;
+      ctx.arc(canvas.width*0.65, canvas.height*0.35, r, 0, Math.PI*2);
+      ctx.stroke();
+    }
+    // Second cluster
+    ctx.strokeStyle = '#ff2d2d'; ctx.lineWidth = 0.3;
+    for (let i=0; i<8; i++) {
+      ctx.beginPath();
+      const r = 40 + i*40 + Math.cos(t*0.7 + i*0.6)*10;
+      ctx.arc(canvas.width*0.2, canvas.height*0.75, r, 0, Math.PI*2);
+      ctx.stroke();
+    }
+    t += 0.0022;
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+// ════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  buildHexGrid();
+  initEKG();
+  initTopo();
+  setTimeout(initOscilloscope, 80);
+});
+</script>
+</body>
 </html>
