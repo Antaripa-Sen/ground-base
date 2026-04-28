@@ -38,7 +38,10 @@ body {
   color: var(--text-1);
   background-image: radial-gradient(circle, var(--line) 1px, transparent 1px);
   background-size: 28px 28px;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  min-height: 100vh;
+  -webkit-overflow-scrolling: touch;
 }
 
 h1, h2, h3, h4, h5, h6, .bebas {
@@ -64,9 +67,10 @@ button {
 /* LAYOUT CLASSES */
 .app-container {
   display: flex;
-  height: 100vh;
-  width: 100vw;
-  overflow: hidden;
+  min-height: 100vh;
+  width: 100%;
+  flex-direction: column;
+  margin: 0 auto;
 }
 
 /* Landing Layout */
@@ -152,7 +156,7 @@ button {
   /* Tablet / Mobile share some traits */
   .landing-grid, .incident-layout {
     flex-direction: column;
-    overflow-y: auto;
+    min-height: 100vh;
   }
   
   .landing-left {
@@ -161,17 +165,21 @@ button {
     border-top: 4px solid var(--crisis);
     border-right: none;
     border-bottom: 1px solid var(--line);
+    min-height: auto;
   }
 
   .landing-right {
     padding: 20px;
+    min-height: auto;
+    flex: 1;
   }
 
   .col-sidebar, .col-main, .col-feed {
     width: 100%;
-    height: auto;
+    min-height: auto;
     border-right: none;
     border-left: none;
+    flex-shrink: 0;
   }
 
   .col-sidebar {
@@ -180,6 +188,11 @@ button {
   
   .col-main {
     padding: 20px;
+    flex: 1;
+  }
+
+  .col-feed {
+    min-height: auto;
   }
 }
 
@@ -203,6 +216,21 @@ button {
 
   .comms-row {
     flex-direction: column;
+  }
+
+  /* Improve touch targets on mobile */
+  button {
+    min-height: 44px;
+    padding: 12px 16px;
+  }
+
+  /* Better spacing for mobile */
+  .landing-left, .landing-right {
+    padding: 16px;
+  }
+
+  .col-sidebar, .col-main, .col-feed {
+    padding: 16px;
   }
 }
 
